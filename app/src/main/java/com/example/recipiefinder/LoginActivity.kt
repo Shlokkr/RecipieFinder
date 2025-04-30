@@ -19,6 +19,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.recipiefinder.ui.theme.RecipieFInderTheme
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,11 +38,16 @@ class LoginActivity : ComponentActivity() {
 @Composable
 fun LoginScreen() {
     val context = LocalContext.current
+    val auth = Firebase.auth
 
-    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+
+    var showGdprDialog by remember { mutableStateOf(true) }
+    var gdprAccepted by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -56,15 +63,15 @@ fun LoginScreen() {
         )
 
         OutlinedTextField(
-            value = username,
+            value = email,
             onValueChange = {
-                username = it
+                email = it
                 if (errorMessage.isNotEmpty()) errorMessage = ""
             },
-            label = { Text("Username") },
+            label = { Text("Email") },
             singleLine = true,
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Username") },
-            isError = errorMessage.isNotEmpty() && username.isBlank(),
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Email") },
+            isError = errorMessage.isNotEmpty() && email.isBlank(),
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -103,23 +110,35 @@ fun LoginScreen() {
 
         Button(
             onClick = {
-                when {
-                    username.isBlank() || password.isBlank() -> {
-                        errorMessage = "Please fill in both fields."
-                    }
-                    username == "admin" && password == "1234" -> {
-                        context.startActivity(Intent(context, MainActivity::class.java))
-                    }
-                    else -> {
-                        errorMessage = "Invalid username or password."
-                    }
+                if (email.isBlank() || password.isBlank()) {
+                    errorMessage = "Please fill in both fields."
+                } else {
+                    isLoading = true
+                    auth.signInWithEmailAndPassword(email.trim(), password.trim())
+                        .addOnCompleteListener { task ->
+                            isLoading = false
+                            if (task.isSuccessful) {
+                                context.startActivity(Intent(context, HomeActivity::class.java))
+                            } else {
+                                errorMessage = task.exception?.message ?: "Login failed."
+                            }
+                        }
                 }
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(48.dp),
+            enabled = !isLoading && gdprAccepted
         ) {
-            Text("Login")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text("Login")
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -129,5 +148,32 @@ fun LoginScreen() {
         }) {
             Text("Don't have an account? Sign Up")
         }
+    }
+
+    // GDPR Consent Dialog
+    if (showGdprDialog) {
+        AlertDialog(
+            onDismissRequest = { /* prevent dismissing */ },
+            title = { Text("GDPR Consent") },
+            text = {
+                Text("We use your data solely to manage your account and personalize your experience. By continuing, you accept our Privacy Policy.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    gdprAccepted = true
+                    showGdprDialog = false
+                }) {
+                    Text("Accept")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    gdprAccepted = false
+                    showGdprDialog = false
+                }) {
+                    Text("Decline")
+                }
+            }
+        )
     }
 }

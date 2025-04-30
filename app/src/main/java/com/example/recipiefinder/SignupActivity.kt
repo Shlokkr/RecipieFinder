@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.recipiefinder.ui.theme.RecipieFInderTheme
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 class SignupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,12 +33,14 @@ class SignupActivity : ComponentActivity() {
 @Composable
 fun SignupScreen() {
     val context = LocalContext.current
+    val auth = Firebase.auth
 
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -50,7 +54,7 @@ fun SignupScreen() {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        TextField(
+        OutlinedTextField(
             value = username,
             onValueChange = { username = it },
             label = { Text("Username") },
@@ -59,7 +63,7 @@ fun SignupScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        TextField(
+        OutlinedTextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
@@ -68,7 +72,7 @@ fun SignupScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        TextField(
+        OutlinedTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
@@ -78,7 +82,7 @@ fun SignupScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        TextField(
+        OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
             label = { Text("Confirm Password") },
@@ -95,13 +99,30 @@ fun SignupScreen() {
                 } else if (password != confirmPassword) {
                     errorMessage = "Passwords do not match"
                 } else {
-                    Toast.makeText(context, "Signup successful", Toast.LENGTH_SHORT).show()
-                    context.startActivity(Intent(context, LoginActivity::class.java))
+                    isLoading = true
+                    auth.createUserWithEmailAndPassword(email.trim(), password.trim())
+                        .addOnCompleteListener { task ->
+                            isLoading = false
+                            if (task.isSuccessful) {
+                                Toast.makeText(context, "Signup successful", Toast.LENGTH_SHORT).show()
+                                context.startActivity(Intent(context, LoginActivity::class.java))
+                            } else {
+                                errorMessage = task.exception?.message ?: "Signup failed"
+                            }
+                        }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         ) {
-            Text("Sign Up")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Sign Up")
+            }
         }
 
         if (errorMessage.isNotEmpty()) {
