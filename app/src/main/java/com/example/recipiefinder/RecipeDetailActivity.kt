@@ -15,11 +15,15 @@ import com.example.recipiefinder.ui.theme.RecipieFInderTheme
 class RecipeDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val recipeName = intent.getStringExtra("RECIPE_NAME") ?: "Unknown Recipe"
+        val recipe = intent.getSerializableExtra("RECIPE") as? Recipe
         setContent {
             RecipieFInderTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    RecipeDetailScreen(recipeName = recipeName, onBackClick = { finish() })
+                    if (recipe != null) {
+                        RecipeDetailScreen(recipe = recipe, onBackClick = { finish() })
+                    } else {
+                        Text("Recipe not found.")
+                    }
                 }
             }
         }
@@ -28,11 +32,11 @@ class RecipeDetailActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecipeDetailScreen(recipeName: String, onBackClick: () -> Unit) {
+fun RecipeDetailScreen(recipe: Recipe, onBackClick: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(recipeName) },
+                title = { Text(recipe.name) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -47,10 +51,16 @@ fun RecipeDetailScreen(recipeName: String, onBackClick: () -> Unit) {
                 .padding(16.dp)
         ) {
             Text("Ingredients:", style = MaterialTheme.typography.titleMedium)
-            Text("- Sample ingredient 1\n- Sample ingredient 2", style = MaterialTheme.typography.bodyMedium)
+            recipe.ingredients.forEach {
+                Text("- $it", style = MaterialTheme.typography.bodyMedium)
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
+
             Text("Instructions:", style = MaterialTheme.typography.titleMedium)
-            Text("1. Step one\n2. Step two\n3. Step three", style = MaterialTheme.typography.bodyMedium)
+            recipe.instructions.forEachIndexed { index, step ->
+                Text("${index + 1}. $step", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
